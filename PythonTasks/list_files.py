@@ -1,8 +1,9 @@
 import datetime
+import sys
 from datetime import datetime as dt, timedelta
 import boto3
 import time
-import sys
+import botocore.exceptions
 
 
 def check_dt_hour(key, date_hours_list):
@@ -44,27 +45,24 @@ def check_folder_existence(s3_client, bucket, location):
 
 def get_file_list(s3_client, bucket, prefix, date_list, date_hours_list):
     files_list = []
+    paginator = s3_client.get_paginator('list_objects')
     for date in date_list:
         location = prefix + date
+        operation_parameters = {'Bucket': bucket,
+                                'Prefix': location}
         if check_folder_existence(s3_client, bucket, location) == True:
-            result = s3_client.list_objects(Bucket=bucket, Prefix=location)['Contents']
-            for key in result:
-                if key['Key'][-1:] != '/' and check_dt_hour(key['Key'], date_hours_list) == True:
-                    files_list.append(key['Key'])
+            page_iterator = paginator.paginate(**operation_parameters)
+            for page in page_iterator:
+                result = page['Contents']
+                for key in result:
+                    if key['Key'][-1:] != '/' and check_dt_hour(key ['Key'], date_hours_list) == True:
+                        files_list.append(key['Key'])
         else:
             continue
     return files_list
 
 
 def create_file(s3_client, bucket, output_file_location, output_file, files_list):
-    '''
-    :param s3_client:
-    :param bucket:
-    :param output_file_location:
-    :param output_file:
-    :param files_list:
-    :return:
-    '''
     f = open(output_file, "w+")
     for item in files_list:
         f.write(str(item) + '\n')
@@ -73,29 +71,25 @@ def create_file(s3_client, bucket, output_file_location, output_file, files_list
 
 
 if __name__ == "__main__":
-    # read input params
-    bucket = sys.argv[1].replace('\r', '')
-    prefix = sys.argv[2].replace('\r', '')
-    lookback = int(sys.argv[3].replace('\r', ''))
-    start = sys.argv[4].replace('\r', '')
-    bookmark_file_bucket = sys.argv[5].replace('\r', '')
-    bookmark_file_location = sys.argv[6].replace('\r', '')
-
-    # calculate parameters
     s3_client = boto3.client('s3')
-    paginator = s3_client.get_paginator('list_objects_v2')
-    start_hour = dt.strptime(start, "%Y-%m-%dT%H:%M:%S")
-    # create end hour by substracting 2h from the current timestamp(last hourly folder from which we gona read data)
+    lookback = 2
+    bucket = 'analytics-qubole-prod'
+    prefix = 'prod-adhoc/warehouse/project_ede_tdr.db/js/'
+
+    print(datetime.datetime.now())
+    start_hour = dt.strptime('2019-03-25 23:00:00', "%Y-%m-%d %H:%M:%S")
+    # create end hour by substracting 2h from the current timstamp(last hourly folder from which we gona read data)
     end_hour = (datetime.datetime.now() - timedelta(hours=lookback)).replace(microsecond=0, second=0, minute=0)
-    next_load_start_hour = end_hour + timedelta(hours=1)
+    start_date = start_hour.date()
+    end_date = end_hour.date()
     output_file = str(int(time.time())) + "_" + str(end_hour.strftime("%Y_%m_%dT%H_%M_%S")) + ".txt"
-    output_file_location = bookmark_file_location + output_file
+    output_file_location = prefix + output_file
+    print("Start: " + str(start_hour) + " End: " + str(end_hour))
+    print("Start date: " + str(start_date) + " End date: " + str(end_date))
+    print("Output file name: " + output_file)
 
     date_hours_list, date_list = get_date_lists(start_hour, end_hour)
     files_list = get_file_list(s3_client, bucket, prefix, date_list, date_hours_list)
-    if not files_list:
-        print("FILE_NAME=NO_FILES_TO_LOAD")
-    else:
-        create_file(s3_client, bookmark_file_bucket, output_file_location, output_file, files_list)
-        print("FILE_NAME=" + output_file)
-    print("NEXT_LOAD_START_HOUR=" + str(next_load_start_hour.strftime("%Y-%m-%dT%H:%M:%S")))
+    create_file(s3_client, bucket, output_file_location, output_file, files_list)
+    print("List of files: " + str(files_list))
+    #sys.exit(output_file)

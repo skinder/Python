@@ -1,4 +1,0 @@
-prod-adhoc/warehouse/project_ede_tdr.db/js/2019/03/25/23/1.txt
-prod-adhoc/warehouse/project_ede_tdr.db/js/2019/03/25/23/CommissionJunctionTVLY__CA_20190315.tab
-prod-adhoc/warehouse/project_ede_tdr.db/js/2019/03/26/05/1.txt
-prod-adhoc/warehouse/project_ede_tdr.db/js/2019/03/26/15/1.txt

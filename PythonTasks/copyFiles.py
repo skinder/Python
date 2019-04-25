@@ -39,19 +39,3 @@ def handler(event, context):
     print("file copied: "+source_file_name)
 
     return {'message': source_key}
-
-'''
-def check(s3, bucket, key):
-    try:
-        s3.head_object(Bucket=bucket, Key=key)
-    except ClientError as e:
-        return int(e.response['Error']['Code']) != 404
-    return True
-
-
-if check(s3, target_bucket, dest_key) == True:
-    print("File already exists")
-else:
-    s3.copy_object(Bucket=target_bucket, Key=dest_key, CopySource=copy_source)
-    print("file copied: "+source_file_name)
-'''
